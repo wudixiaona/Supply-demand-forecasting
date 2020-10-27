@@ -1,0 +1,92 @@
+import pandas as pd
+import tensorflow as tf
+from datetime import datetime
+filename1 = "D:/论文/Supply-demand-forecasting/exploredata/data_raw/training_data_gap.csv"
+#supply_data = pd.read_csv(filename1,header=None,names= ['all_requests'],head=0 )
+#gap_data = pd.read_csv(filename1,header=None,names= ['gap'],head=0 )
+order_data = pd.read_csv(filename1,header=None)
+order_data['all_supply'] = order_data['all_requests']-order_data['gap']
+#print(order_data['all_supply'])
+#import pickle
+#f = open('D:/论文/Supply-demand-forecasting/data_raw/training_data_traffic.csv.dict.pickle','rb+')
+#info = pickle.load(f)
+#print(info)
+#ID模块
+#读入数据转化成向量
+df = pd.read_csv('training_data_gap.csv')
+#把日期转化成星期
+def convertToWeek(time_date):  # 转换时间数据
+    week = datetime.strptime("2016-01-01", "%Y-%m-%d").weekday()
+    return(week)
+for i in range (5,58) :    #把所有日期转化成星期几,没写明白
+    df['week_id'] = convertToWeek('time_date')
+AreaID_tensor = tf.constant(df['start_district_id'])
+TimeID_tensor = tf.constant(df['time_id'])
+WeekID_tensor = tf.constant(df['week_id'])
+#stack_tensor = tf.stack([AreaID_tensor,TimeID_tensor,WeekID_tensor])
+#怎么提取其中一列，并连接起来
+vocabulary_size = 163492
+embedding_size = 8
+embeddings = tf.Variable(tf.random_uniform([vocabulary_size,embedding_size ],-1.0,1.0))
+embed_AreaID_tensor = tf.nn.embedding_lookup(embeddings,AreaID_tensor)
+vocabulary_size = 163492
+embedding_size = 6
+embeddings = tf.Variable(tf.random_uniform([vocabulary_size,embedding_size ],-1.0,1.0))
+embed_TimeID_tensor = tf.nn.embedding_lookup(embeddings,TimeID_tensor)
+vocabulary_size = 163492
+embedding_size = 3
+embeddings = tf.Variable(tf.random_uniform([vocabulary_size,embedding_size ],-1.0,1.0))
+embed_WeekID_tensor = tf.nn.embedding_lookup(embeddings,WeekID_tensor)
+Xid = stack_tensor = tf.stack([embed_AreaID_tensor,embed_TimeID_tensor,embed_WeekID_tensor])
+#订单模块
+supply_tensor = tf.constant(order_data['all_supply'])
+request_tensor = tf.constant(order_data['all_request'])
+stack_tensor = tf.stack([supply_tensor,request_tensor])
+#全连接层
+#x = tf.random.normal([4,28*28])
+from tensorflow.keras import layers # 导入层模块
+# 创建全连接层，指定输出节点数和激活函数
+fc = layers.Dense(64, activation=tf.nn.relu)
+h1 = fc(stack_tensor) # 通过fc 类完成一次全连接层的计算
+fc = layers.Dense(32, activation=tf.nn.relu)
+Xsd = fc(stack_tensor) # 通过fc 类完成二次全连接层的计算
+#输出，连接起来
+#生成Xsd，输入到下一层
+#天气模块
+#读入天气类型，然后embedding
+df_we = pd.read_csv('training_data_weather.csv')
+wc_type_tensor = tf.constant(order_data['weather'])
+wc_temp_tensor = tf.constant(order_data['temparature'])
+wc_pm_tensor = tf.constant(order_data['pm25'])
+vocabulary_size = 2670
+embedding_size = 3
+embeddings = tf.Variable(tf.random_uniform([vocabulary_size,embedding_size ],-1.0,1.0))
+embed_wc_type_tensor = tf.nn.embedding_lookup(embeddings,wc_type_tensor)
+#embed = tf.nn.embedding_lookup(embeddings,data)
+#输入温度和pm2.5，并连接起来
+wc_tensor = tf.concat( [embed_wc_type_tensor,wc_temp_tensor,wc_pm_tensor],0)
+#输入Xsd
+#连接起来，输入到全连接层
+stack_wc_tensor = tf.stack([wc_tensor,Xsd])
+from tensorflow.keras import layers # 导入层模块
+# 创建全连接层，指定输出节点数和激活函数
+fc_wc = layers.Dense(64, activation=tf.nn.relu)
+h1_wc = fc(stack_wc_tensor) # 通过fc 类完成一次全连接层的计算
+fc1_wc = layers.Dense(32, activation=tf.nn.relu)
+Rwc = fc(h1_wc) # 通过fc 类完成二次全连接层的计算
+Xwc = Rwc+Xsd
+#进入交通模块
+df = pd.read_csv('D:\论文\Supply-demand-forecasting\exploredata\data_raw\ training_data_traffic1')
+level_11_tensor = tf.constant(order_data['level_11'])
+level_21_tensor = tf.constant(order_data['level_21'])
+level_31_tensor = tf.constant(order_data['level_31'])
+level_41_tensor = tf.constant(order_data['level_41'])
+stack_traffic_tensor = tf.stack([level_11_tensor,level_11_tensor,level_31_tensor,level_41_tensor])
+from tensorflow.keras import layers # 导入层模块
+# 创建全连接层，指定输出节点数和激活函数
+fc_traffic = layers.Dense(64, activation=tf.nn.relu)
+h1_traffic = fc(stack_traffic_tensor) # 通过fc 类完成一次全连接层的计算
+fc1_traffic = layers.Dense(32, activation=tf.nn.relu)
+Rtraffic = fc(fc1_traffic) # 通过fc 类完成二次全连接层的计算
+Xtc = Rtraffic+Xwc
+print(Xtc)
